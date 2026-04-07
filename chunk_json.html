@@ -462,8 +462,7 @@ pre.json-pre {
   justify-content: center;
 }
 .upload-text { font-size: 11px; color: var(--text-secondary); }
-.upload-text strong { color: var(--text-primary); font-weight: 500; display: block; margin-bottom: 1px; }
-.upload-text__sub { display: block; }
+.upload-text strong { color: var(--text-primary); font-weight: 500; display: block; }
 .upload-error { color: var(--text-danger); margin-top: var(--space-xs); }
 
 /* ─── JSON box ───────────────────────────────────────────────────── */
@@ -808,7 +807,7 @@ pre.json-pre {
               </svg>
             </div>
             <div class="upload-text">
-              <strong id="raw-upload-title"></strong><span id="raw-upload-sub" class="upload-text__sub"></span>
+              <strong id="raw-upload-title"></strong>
             </div>
           </div>
           <p id="raw-upload-error" class="upload-text upload-error" style="display:none;"></p>
@@ -885,7 +884,7 @@ pre.json-pre {
               </svg>
             </div>
             <div class="upload-text">
-              <strong id="mold-upload-title"></strong><span id="mold-upload-sub" class="upload-text__sub"></span>
+              <strong id="mold-upload-title"></strong>
             </div>
           </div>
           <p id="mold-upload-error" class="upload-text upload-error" style="display:none;"></p>
@@ -1123,9 +1122,7 @@ const CHUNK_UI_COPY = {
   sectionRaw: '1 · 밀가루',
   sectionMold: '2 · 붕어빵 틀',
   rawUploadTitle: 'JSON 파일 업로드',
-  rawUploadSub: 'Parse 결과 형식의 샘플',
   moldUploadTitle: 'JSON 샘플 업로드',
-  moldUploadSub: 'designed_schema(flat_keys·tables) 또는 Extract 입력 스키마(json_schema)',
   delUploaded: '삭제',
 };
 
@@ -1221,13 +1218,9 @@ function initChunkPanelCopy() {
   if (secMold) secMold.textContent = CHUNK_UI_COPY.sectionMold;
 
   const rut = document.getElementById('raw-upload-title');
-  const rus = document.getElementById('raw-upload-sub');
   if (rut) rut.textContent = CHUNK_UI_COPY.rawUploadTitle;
-  if (rus) rus.textContent = CHUNK_UI_COPY.rawUploadSub;
   const mut = document.getElementById('mold-upload-title');
-  const mus = document.getElementById('mold-upload-sub');
   if (mut) mut.textContent = CHUNK_UI_COPY.moldUploadTitle;
-  if (mus) mus.textContent = CHUNK_UI_COPY.moldUploadSub;
 
   document.querySelectorAll('.del-btn').forEach(b => {
     b.textContent = CHUNK_UI_COPY.delUploaded;
