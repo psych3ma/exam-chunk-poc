@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--
+  정적 목업 — 단일 원본: ui/static/chunk_json.html
+  FastAPI: GET {API_BASE}/ui-mock/chunk_json.html (FileResponse, HEAD 지원)
+  PoC 실행 결과: DOM `#chunk-poc-fixed-example-json` (동기화: chunk_poc_fixed_example.json)
+  (선택) 연동: meta chunk-extract-api-base 또는 window.CHUNK_EXTRACT_API_BASE
+-->
+<meta name="chunk-extract-api-base" content="" />
+<title>Chunk Module — Builder Mockup</title>
+<style>
+/* ─── Design tokens ────────────────────────────────────────────── */
+:root {
+  /* Surface */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f5f5f4;
+
+  /* Text */
+  --text-primary:   #1c1917;
+  --text-secondary: #78716c;
+  --text-tertiary:  #a8a29e;
+
+  /* Border */
+  --border-weak:   rgba(0,0,0,0.12);
+  --border-medium: rgba(0,0,0,0.20);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', monospace;
+
+  /* ── Module palette (single source of truth per module) ── */
+  --module-parse-color:    #6366f1;
+  --module-parse-bg:       #ede9fe;
+  --module-classify-color: #f97316;
+  --module-chunk-color:    #16a34a;
+  --module-chunk-bg:       #f0fdf4;
+  --module-chunk-badge-bg: #f0fdf4;
+  --module-chunk-badge-fg: #15803d;
+  --module-chunk-badge-bd: #bbf7d0;
+  --module-extract-color:  #ec4899;
+  --module-extract-bg:     #fce7f3;
+  --module-instruct-color: #06b6d4;
+  --module-instruct-bg:    #e0f2fe;
+
+  /* ── Semantic status dots ──────────────────────────────── */
+  --dot-auto: #10b981;
+  --dot-ai:   #6366f1;
+
+  /* ── JSON syntax colours ───────────────────────────────── */
+  --json-key: #6366f1;
+  --json-num: #059669;
+  --json-str: #d97706;
+
+  /* ── Shared connector colour ───────────────────────────── */
+  --connector-color: #c4b5fd;
+
+  /* ── Canvas background ─────────────────────────────────── */
+  --canvas-bg: #eef1f8;
+
+  /* ── Spacing & type rhythm (패널·폼 공통 — 숫자 산재 방지) ── */
+  --space-2xs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --leading-snug: 1.45;
+  --leading-relaxed: 1.62;
+  /* module-chunk #16a34a 기준 포커스 링 */
+  --focus-ring-chunk: rgba(22, 163, 74, 0.28);
+
+  /* 캔버스 노드 라벨 — 하이픈(Chunk-1) 등에서 불필요한 줄바꿈 방지 */
+  --node-min-width: 116px;
+  --node-label-line-height: 1.25;
+
+  /* 페이지·빌더 셸 (목업 치수 단일 출처) */
+  --page-bg: #f0f0f0;
+  --page-padding: 24px;
+  --builder-height: 620px;
+  --builder-max-width: 960px;
+  --panel-width: 328px;
+  --panel-body-padding-y: 14px;
+  --panel-body-inline-padding: var(--space-lg);
+  --divider-bleed: var(--panel-body-inline-padding);
+  /* 코드·JSON 미리보기 공통 상한 (dvh 지원 시 짧은 뷰포트에서 내부 스크롤 영역 축소 → 이중 스크롤 부담 완화) */
+  --code-block-max-height-base: 148px;
+  --code-block-max-height: var(--code-block-max-height-base);
+  --result-body-max-height: var(--code-block-max-height);
+  --json-preview-max-height: var(--code-block-max-height);
+  /* 의도 입력: 리사이즈 상한을 뷰포트와 연동 */
+  --instr-textarea-min-height: 5.75rem;
+  --instr-textarea-max-height: 12rem;
+  --leading-code: 1.7;
+
+  /* 상태·피드백 */
+  --text-danger: #b91c1c;
+  --border-success: #6ee7b7;
+  --state-run-loading-bg: var(--module-chunk-badge-fg);
+  --state-run-success-bg: var(--json-num);
+
+  /* Flow 카드 — 모듈 팔레트와 정렬 (raw=Parse, out=Extract) */
+  --flow-out-border: #f9a8d4;
+}
+
+@supports (height: 1dvh) {
+  :root {
+    --code-block-max-height: min(var(--code-block-max-height-base), 40dvh);
+    --instr-textarea-max-height: min(12rem, 36dvh);
+  }
+}
+
+/* ─── Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--page-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--page-padding);
+}
+
+/* ─── Builder shell ──────────────────────────────────────────────── */
+.builder {
+  display: flex;
+  height: var(--builder-height);
+  width: 100%;
+  max-width: var(--builder-max-width);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+/* ─── Canvas ────────────────────────────────────────────────────── */
+.canvas {
+  flex: 1;
+  min-height: 0;
+  background: var(--canvas-bg);
+  position: relative;
+  overflow: hidden;
+}
+.topbar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  z-index: 10;
+  white-space: nowrap;
+}
+.tb-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tb-item.is-active { color: var(--text-primary); font-weight: 500; }
+.tb-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.tb-sep { color: var(--border-medium); font-size: 12px; }
+
+.pipeline {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+}
+.node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: var(--node-min-width);
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+.node.is-active { border: 1.5px solid var(--module-chunk-color); }
+.node-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+/* 라벨 스택: flex 안에서 말줄임이 동작하려면 min-width:0 필요 */
+.node-label-stack {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.node-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: var(--node-label-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.node-type {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: var(--node-label-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.node.is-active .node-type { color: var(--module-chunk-color); }
+
+.connector { display: flex; align-items: center; }
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--connector-color); flex-shrink: 0; }
+.conn-line { width: 28px; height: 1px; background: var(--connector-color); }
+
+.port {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--connector-color);
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.port-left  { left:  -3.5px; }
+.port-right { right: -3.5px; }
+.node.is-active .port { background: var(--module-chunk-color); }
+
+.zoom-controls { position: absolute; bottom: 12px; left: 14px; display: flex; gap: 6px; }
+.zoom-btn {
+  width: 26px;
+  height: 26px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* ─── Panel ──────────────────────────────────────────────────────── */
+.panel {
+  width: var(--panel-width);
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--bg-primary);
+  border-left: 0.5px solid var(--border-weak);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px 10px;
+  border-bottom: 0.5px solid var(--border-weak);
+}
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.panel-heading-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--module-chunk-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panel-actions { display: flex; gap: 10px; color: var(--text-tertiary); font-size: 13px; }
+.panel-actions span { cursor: pointer; }
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--panel-body-padding-y) var(--panel-body-inline-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+}
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+
+.panel-footer {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-top: 0.5px solid var(--border-weak);
+}
+
+/* ─── Flow strip ─────────────────────────────────────────────────── */
+.flow-strip { display: flex; align-items: center; }
+.flow-card { flex: 1; border-radius: var(--radius-md); padding: 6px 8px; text-align: center; }
+.flow-card.raw  { background: var(--module-parse-bg); border: 0.5px solid var(--connector-color); }
+.flow-card.mold { background: var(--module-chunk-bg); border: 0.5px solid var(--module-chunk-badge-bd); }
+.flow-card.out  { background: var(--module-extract-bg); border: 0.5px solid var(--flow-out-border); }
+.flow-label { font-size: 9px; font-weight: 500; color: var(--text-tertiary); }
+.flow-name  { font-size: 11px; font-weight: 500; color: var(--text-primary); }
+.flow-arrow { font-size: 13px; color: var(--text-tertiary); padding: 0 3px; }
+
+/* ─── Section scaffold ───────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+.section-label { font-size: 11px; font-weight: 500; color: var(--text-tertiary); }
+.divider {
+  height: 0.5px;
+  background: var(--border-weak);
+  margin: 0 calc(-1 * var(--divider-bleed));
+}
+
+/* ─── Toggle (segment control) ──────────────────────────────────── */
+.toggle-group {
+  display: flex;
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.tg-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+}
+.tg-btn.is-on { background: var(--bg-secondary); color: var(--text-primary); font-weight: 500; }
+.toggle-group--nested {
+  margin-bottom: var(--space-sm);
+  align-self: flex-start;
+}
+.toggle-group--nested .tg-btn { padding: 2px 8px; font-size: 10px; }
+
+/* ─── Chips ──────────────────────────────────────────────────────── */
+.chip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md);
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+.chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: calc((11px * var(--leading-relaxed) - 5px) / 2);
+}
+.chip--stacked { margin-top: var(--space-xs); }
+
+/* ─── Upload zone ────────────────────────────────────────────────── */
+.upload-zone {
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 11px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.upload-zone:hover { background: var(--bg-secondary); }
+.upload-zone:focus { outline: 2px solid var(--module-chunk-color); outline-offset: 2px; }
+.upload-zone--active { background: var(--bg-secondary); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+pre.json-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: var(--leading-code);
+  color: var(--text-secondary);
+}
+/*
+  패널 내 업로드 미리보기: 높이 상한 + 내부 스크롤.
+  패널 스크롤은 .panel-body(min-height:0)에서만 축소되도록 보장 — 푸터·이중 스크롤 UX는 짧은 뷰포트에서 --code-block-max-height의 dvh가 완화.
+*/
+.json-box pre.json-pre {
+  max-height: var(--json-preview-max-height);
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+  padding-inline-end: var(--space-xs);
+}
+.json-box pre.json-pre::-webkit-scrollbar { width: 3px; height: 3px; }
+.json-box pre.json-pre::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+.upload-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--module-chunk-bg);
+  margin: 0 auto 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.upload-text { font-size: 11px; color: var(--text-secondary); }
+.upload-text strong { color: var(--text-primary); font-weight: 500; display: block; margin-bottom: 1px; }
+.upload-text__sub { display: block; }
+.upload-error { color: var(--text-danger); margin-top: var(--space-xs); }
+
+/* ─── JSON box ───────────────────────────────────────────────────── */
+.json-box {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  padding-top: 28px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: var(--leading-code);
+  min-height: 0;
+}
+.del-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  font-family: var(--font-sans);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.jk { color: var(--json-key); }
+.jv { color: var(--json-num); }
+.js { color: var(--json-str); }
+
+/* ─── 사용자 의도 블록 (라벨 + textarea 세로 리듬) ─────────────────── */
+.chunk-intent-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.instr-label {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: var(--leading-snug);
+  margin: 0;
+}
+.instr-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0.5px solid var(--border-weak);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-md);
+  font-size: 11px;
+  line-height: var(--leading-relaxed);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  resize: vertical;
+  min-height: var(--instr-textarea-min-height);
+  max-height: var(--instr-textarea-max-height);
+}
+.instr-textarea::placeholder {
+  color: var(--text-tertiary);
+  line-height: var(--leading-relaxed);
+}
+.instr-textarea:focus {
+  outline: 2px solid var(--focus-ring-chunk);
+  outline-offset: 1px;
+}
+
+/* ─── Result area ────────────────────────────────────────────────── */
+.result-wrap { border: 0.5px solid var(--border-weak); border-radius: var(--radius-md); overflow: hidden; }
+.result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 7px 10px;
+  background: var(--bg-secondary);
+  border-bottom: 0.5px solid var(--border-weak);
+}
+.result-head-text {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.result-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); }
+/**
+ * 변환 결과 설명( PoC 안내·데모 힌트 등 ) — `result-wrap` 바깥 상단에 두어 헤더와 JSON 사이 가독성 확보
+ * 문구는 CHUNK_UI_COPY.resultSubtitleForRunKind 단일 출처
+ */
+.result-context {
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.result-actions { display: flex; gap: 4px; flex-shrink: 0; padding-top: 1px; }
+.icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  border: 0.5px solid var(--border-weak);
+  border-radius: 5px;
+  cursor: pointer;
+  background: var(--bg-primary);
+  transition: color 0.1s;
+}
+.icon-btn:hover { color: var(--text-primary); }
+.icon-btn.is-copied { color: var(--json-num); border-color: var(--border-success); }
+.result-body {
+  max-height: var(--result-body-max-height);
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: var(--leading-code);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-medium) transparent;
+}
+.result-body::-webkit-scrollbar { width: 3px; }
+.result-body::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+.result-footer-bar {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border-top: 0.5px solid var(--border-weak);
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────── */
+.badge {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  border: 0.5px solid var(--module-chunk-badge-bd);
+  background: var(--module-chunk-badge-bg);
+  color: var(--module-chunk-badge-fg);
+}
+
+/* ─── Run button ─────────────────────────────────────────────────── */
+.run-btn {
+  width: 100%;
+  padding: 9px;
+  background: var(--module-chunk-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: filter 0.12s;
+}
+.run-btn:hover { filter: brightness(0.92); }
+</style>
+</head>
+<body>
+
+<div class="builder">
+
+  <!-- ── Canvas ────────────────────────────────────────────────── -->
+  <div class="canvas">
+
+    <div class="topbar">
+      <div class="tb-item">
+        <span class="tb-dot" style="background:var(--module-parse-color);"></span>Parse
+      </div>
+      <span class="tb-sep">+</span>
+      <div class="tb-item">
+        <span class="tb-dot" style="background:var(--module-classify-color);"></span>Classify
+      </div>
+      <span class="tb-sep">+</span>
+      <div class="tb-item is-active">
+        <span class="tb-dot" style="background:var(--module-chunk-color);"></span>
+        Chunk <span class="badge" style="margin-left:2px;">신규</span>
+      </div>
+      <span class="tb-sep">+</span>
+      <div class="tb-item">
+        <span class="tb-dot" style="background:var(--module-extract-color);"></span>Extract
+      </div>
+      <span class="tb-sep">+</span>
+      <div class="tb-item">
+        <span class="tb-dot" style="background:var(--module-instruct-color);"></span>Instruct
+      </div>
+    </div>
+
+    <div class="pipeline">
+
+      <div class="node">
+        <span class="port port-right"></span>
+        <div class="node-icon" style="background:var(--module-parse-bg);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="2" width="12" height="12" rx="2" fill="var(--module-parse-color)" opacity=".7"/>
+            <rect x="4" y="5" width="8" height="1.5" rx=".75" fill="white"/>
+            <rect x="4" y="8" width="5" height="1.5" rx=".75" fill="white"/>
+          </svg>
+        </div>
+        <div class="node-label-stack"><div class="node-name">Parse</div><div class="node-type">Parse</div></div>
+      </div>
+
+      <div class="connector"><div class="conn-dot"></div><div class="conn-line"></div><div class="conn-dot"></div></div>
+
+      <div class="node is-active">
+        <span class="port port-left"></span>
+        <span class="port port-right"></span>
+        <div class="node-icon" style="background:var(--module-chunk-bg);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="3" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".8"/>
+            <rect x="9" y="3" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".5"/>
+            <rect x="1" y="9" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".5"/>
+            <rect x="9" y="9" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".3"/>
+          </svg>
+        </div>
+        <div class="node-label-stack"><div class="node-name">Chunk-1</div><div class="node-type">Chunk</div></div>
+      </div>
+
+      <div class="connector"><div class="conn-dot"></div><div class="conn-line"></div><div class="conn-dot"></div></div>
+
+      <div class="node">
+        <span class="port port-left"></span>
+        <span class="port port-right"></span>
+        <div class="node-icon" style="background:var(--module-extract-bg);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="5" fill="var(--module-extract-color)" opacity=".7"/>
+            <circle cx="8" cy="8" r="2.5" fill="white" opacity=".8"/>
+          </svg>
+        </div>
+        <div class="node-label-stack"><div class="node-name">Extract-1</div><div class="node-type">Extract</div></div>
+      </div>
+
+      <div class="connector"><div class="conn-dot"></div><div class="conn-line"></div><div class="conn-dot"></div></div>
+
+      <div class="node">
+        <span class="port port-left"></span>
+        <div class="node-icon" style="background:var(--module-instruct-bg);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M3 4h10M3 8h7M3 12h4" stroke="var(--module-instruct-color)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="node-label-stack"><div class="node-name">Instruct-1</div><div class="node-type">Instruct</div></div>
+      </div>
+
+    </div>
+
+    <div class="zoom-controls">
+      <button type="button" class="zoom-btn">+</button>
+      <button type="button" class="zoom-btn">−</button>
+    </div>
+
+  </div><!-- /canvas -->
+
+  <!-- ── Right panel ────────────────────────────────────────────── -->
+  <div class="panel">
+
+    <div class="panel-header">
+      <div class="panel-title">
+        <div class="panel-icon">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="3" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".8"/>
+            <rect x="9" y="3" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".5"/>
+            <rect x="1" y="9" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".5"/>
+            <rect x="9" y="9" width="6" height="4" rx="1.5" fill="var(--module-chunk-color)" opacity=".3"/>
+          </svg>
+        </div>
+        <span class="panel-heading-name">Chunk-1</span>
+        <span class="badge">신규</span>
+      </div>
+      <div class="panel-actions">
+        <span title="이름 변경">✎</span>
+        <span title="전체화면">⊞</span>
+        <span title="닫기">✕</span>
+      </div>
+    </div>
+
+    <div class="panel-body" id="panel-body">
+
+      <input type="file" id="raw-file-input" class="sr-only" accept=".json,application/json" tabindex="-1" aria-label="Parse 결과 JSON 파일 선택" />
+      <input type="file" id="mold-file-input" class="sr-only" accept=".json,application/json" tabindex="-1" aria-label="스키마 JSON 샘플 파일 선택" />
+
+      <!-- Flow visualiser -->
+      <div class="flow-strip">
+        <div class="flow-card raw">
+          <div class="flow-label" id="flow-raw-label"></div>
+          <div class="flow-name" id="flow-raw-name"></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card mold">
+          <div class="flow-label" id="flow-mold-label"></div>
+          <div class="flow-name" id="flow-mold-name"></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card out">
+          <div class="flow-label" id="flow-out-label"></div>
+          <div class="flow-name" id="flow-out-name"></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Section 1 · 밀가루 -->
+      <div>
+        <div class="section-header">
+          <span class="section-label" id="section-label-raw"></span>
+          <div class="toggle-group" id="tg-raw">
+            <button type="button" class="tg-btn is-on" data-group="raw" data-mode="auto" onclick="handleToggle(this)">Auto</button>
+            <button type="button" class="tg-btn" data-group="raw" data-mode="user" onclick="handleToggle(this)"></button>
+          </div>
+        </div>
+
+        <div id="raw-auto">
+          <div class="chip">
+            <span class="chip-dot" style="background:var(--dot-auto);"></span>
+            <span id="raw-auto-chip-copy"></span>
+          </div>
+        </div>
+
+        <div id="raw-user" style="display:none;">
+          <div
+            class="upload-zone"
+            id="raw-upload-zone"
+            role="button"
+            tabindex="0"
+            aria-label="JSON 파일 선택 또는 여기로 끌어다 놓기"
+          >
+            <div class="upload-icon">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2v9M5 5l3-3 3 3" stroke="var(--module-parse-color)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12h12" stroke="var(--module-parse-color)" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="upload-text">
+              <strong id="raw-upload-title"></strong><span id="raw-upload-sub" class="upload-text__sub"></span>
+            </div>
+          </div>
+          <p id="raw-upload-error" class="upload-text upload-error" style="display:none;"></p>
+          <div id="raw-uploaded" style="display:none;">
+            <div class="json-box">
+              <button type="button" class="del-btn" onclick="clearUploaded('raw')"></button>
+              <pre id="raw-json-display" class="json-pre"></pre>
+            </div>
+            <p id="raw-file-meta" class="upload-text" style="margin-top:6px;"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Section 2 · 붕어빵 틀 -->
+      <div>
+        <div class="section-header">
+          <span class="section-label" id="section-label-mold"></span>
+          <div class="toggle-group" id="tg-mold">
+            <button type="button" class="tg-btn is-on" data-group="mold" data-mode="auto" onclick="handleToggle(this)">Auto</button>
+            <button type="button" class="tg-btn" data-group="mold" data-mode="user" onclick="handleToggle(this)"></button>
+          </div>
+        </div>
+
+        <!-- 사용자 의도 — 토글과 무관하게 항상 표시 (문구는 CHUNK_UI_COPY) -->
+        <div class="chunk-intent-block">
+          <div class="instr-label" id="chunk-intent-label"></div>
+          <textarea
+            id="chunk-user-intent"
+            class="instr-textarea"
+            rows="4"
+            aria-labelledby="chunk-intent-label"
+          ></textarea>
+        </div>
+
+        <div id="mold-auto">
+          <div class="toggle-group toggle-group--nested" id="tg-mold-auto-mode" role="radiogroup">
+            <button
+              type="button"
+              class="tg-btn is-on"
+              role="radio"
+              aria-checked="true"
+              data-chunk-mold-auto="stored_schema"
+              onclick="handleMoldAutoModeToggle(this)"
+            ></button>
+            <button
+              type="button"
+              class="tg-btn"
+              role="radio"
+              aria-checked="false"
+              data-chunk-mold-auto="llm_design"
+              onclick="handleMoldAutoModeToggle(this)"
+            ></button>
+          </div>
+          <div class="chip">
+            <span class="chip-dot" style="background:var(--dot-auto);"></span>
+            <span id="mold-auto-chip-copy"></span>
+          </div>
+        </div>
+
+        <div id="mold-user" style="display:none;">
+          <div
+            class="upload-zone"
+            id="mold-upload-zone"
+            role="button"
+            tabindex="0"
+            aria-label="JSON 샘플 파일 선택 또는 여기로 끌어다 놓기"
+          >
+            <div class="upload-icon">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2v9M5 5l3-3 3 3" stroke="var(--module-chunk-color)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12h12" stroke="var(--module-chunk-color)" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="upload-text">
+              <strong id="mold-upload-title"></strong><span id="mold-upload-sub" class="upload-text__sub"></span>
+            </div>
+          </div>
+          <p id="mold-upload-error" class="upload-text upload-error" style="display:none;"></p>
+          <div id="mold-uploaded" style="display:none;">
+            <div class="json-box">
+              <button type="button" class="del-btn" onclick="clearUploaded('mold')"></button>
+              <pre id="mold-json-display" class="json-pre"></pre>
+            </div>
+            <div id="mold-schema-chip" class="chip chip--stacked" style="display:none;">
+              <span class="chip-dot" style="background:var(--dot-ai);"></span>
+              <span id="mold-schema-chip-text"></span>
+            </div>
+            <p id="mold-file-meta" class="upload-text" style="margin-top:6px;"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Result (hidden until run) -->
+      <div id="result-section" style="display:none;">
+        <p
+          class="result-context"
+          id="chunk-result-subtitle"
+          hidden
+          role="status"
+          aria-live="polite"
+        ></p>
+        <div class="result-wrap">
+          <div class="result-head">
+            <div class="result-head-text">
+              <span class="result-label" id="chunk-result-title"></span>
+            </div>
+            <div class="result-actions">
+              <button type="button" class="icon-btn" id="copy-btn" onclick="copyResult()">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M3 11V3a1 1 0 011-1h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg><span class="icon-btn-label" id="copy-btn-label"></span>
+              </button>
+              <button type="button" class="icon-btn" id="download-result-btn" onclick="downloadResult()">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M2 12h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg><span class="icon-btn-label" id="download-btn-label"></span>
+              </button>
+            </div>
+          </div>
+          <div class="result-body" id="result-body"></div>
+          <div class="result-footer-bar" id="result-footer-bar"></div>
+        </div>
+      </div>
+
+    </div><!-- /panel-body -->
+
+    <div class="panel-footer">
+      <button type="button" class="run-btn" id="run-btn" onclick="runChunk()">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+          <path d="M5 3l9 5-9 5V3z" fill="currentColor"/>
+        </svg>
+        <span class="run-btn__label"></span>
+      </button>
+    </div>
+
+  </div><!-- /panel -->
+
+</div><!-- /builder -->
+
+<!--
+  PoC 고정 예시 JSON — 실행·재실행 시 항상 표시 (단일 DOM 소스 `#chunk-poc-fixed-example-json`).
+  스키마 편집: 동일 디렉터리 `chunk_poc_fixed_example.json` 과 내용을 맞추면 협업 시 diff가 명확합니다.
+-->
+<script type="application/json" id="chunk-poc-fixed-example-json">
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "Extract-1",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "document_type": {
+          "type": "string",
+          "description": "Indicates the type or title of the exam or document, such as the subject or exam session."
+        },
+        "exam_session": {
+          "type": "string",
+          "description": "Specifies the session or part of the exam, such as '제3교시'."
+        },
+        "general_instructions": {
+          "type": "string",
+          "description": "Contains general instructions or notes applicable to the exam or questions, including assumptions and accounting standards to be used."
+        },
+        "questions": {
+          "type": "array",
+          "description": "",
+          "items": {
+            "type": "object",
+            "properties": {
+              "question_number": {
+                "type": "string",
+                "description": "The number or identifier of the question."
+              },
+              "question_text": {
+                "type": "string",
+                "description": "The main text or body of the question, including any scenario or requirements."
+              },
+              "question_additional_info": {
+                "type": "string",
+                "description": "Any additional information, notes, or assumptions specific to the question."
+              },
+              "question_table": {
+                "type": "string",
+                "description": "Reference to a table id or description if the question includes a table. If multiple tables, concatenate or enumerate."
+              },
+              "question_options": {
+                "type": "string",
+                "description": "The list of answer options for the question, formatted as a string or enumerated list."
+              }
+            }
+          }
+        },
+        "tables": {
+          "type": "array",
+          "description": "",
+          "items": {
+            "type": "object",
+            "properties": {
+              "table_id": {
+                "type": "string",
+                "description": "A unique identifier for the table, typically matching the document's table id."
+              },
+              "table_title": {
+                "type": "string",
+                "description": "The title or caption of the table, if present."
+              },
+              "table_headers": {
+                "type": "string",
+                "description": "The headers of the table, concatenated or as a comma-separated string."
+              },
+              "table_rows": {
+                "type": "string",
+                "description": "The rows of the table, formatted as a string or JSON array if further structure is required."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</script>
+
+<script>
+/** 붕어빵 틀 Auto 하위 모드 — API·chunk-llm 계약과 동일 키 (문자열 산재 금지) */
+const CHUNK_MOLD_AUTO_MODE = Object.freeze({
+  STORED_SCHEMA: 'stored_schema',
+  LLM_DESIGN: 'llm_design',
+});
+
+/** 마지막 실행 종류 — 푸터·부제·다운로드 파일명과 1:1 (PoC는 단일 종류) */
+const CHUNK_RESULT_RUN_KIND = Object.freeze({
+  /** 입력 조합과 무관하게 동일 예시 JSON (`#chunk-poc-fixed-example-json`) */
+  POC_FIXED_JSON_SCHEMA: 'poc_fixed_json_schema',
+});
+
+/** 변환 결과 부제(PoC) — 문구 변경 시 이 상수만 수정 (Streamlit `ui_copy.SUBTITLE_OK` 와 동기화) */
+const CHUNK_RESULT_PANEL_POC_SUBTITLE =
+  '※ 본 화면은 PoC용 예시이며, 실제 운영 환경에서는 JSON 청킹 및 구조화가 적용된 결과가 제공됩니다.';
+
+/* ── Chunk 패널 표시 문구 (협업·i18n 시 이 객체만 조정) ─────────────── */
+const CHUNK_UI_COPY = {
+  toggleDirectUpload: '직접 업로드',
+  rawToggleHint: 'Parse 산출 JSON을 파일로 직접 올립니다.',
+  moldToggleHint: '스키마·샘플 JSON을 파일로 직접 올립니다.',
+  moldAutoModeRadiogroupLabel: '붕어빵 틀 자동 모드 선택',
+  moldAutoModeStoredBtn: '저장된 설계',
+  moldAutoModeLlmBtn: '스키마 자동 설계',
+  intentLabel: '사용자 의도 입력',
+  intentOptional: '(선택)',
+  /** 시험지·문항 계층 + 공통 지문 분리 — LLM user_context 힌트 (짧은 예시형) */
+  intentPlaceholder:
+    '예: 문항별 계층 · 공통 지문 분리 · 글·표·보기·숫자는 해당 문항 아래에만',
+  resultTitle: '변환 결과',
+  runLabel: '변환 실행',
+  runLoading: '변환 중…',
+  runSuccess: '변환 완료',
+  runAgain: '재실행',
+  copyLabel: '복사',
+  copyDone: '복사됨',
+  downloadLabel: '다운로드',
+  downloadFilename: 'chunk_result.json',
+  /** 정상·프리뷰 계열 안내 문구 — `CHUNK_RESULT_PANEL_POC_SUBTITLE` 단일 출처 (렌더: `#chunk-result-subtitle`, result-wrap 위) */
+  resultPanelSubtitlePoc: CHUNK_RESULT_PANEL_POC_SUBTITLE,
+  resultSubtitleForRunKind(kind) {
+    return kind === CHUNK_RESULT_RUN_KIND.POC_FIXED_JSON_SCHEMA ? CHUNK_RESULT_PANEL_POC_SUBTITLE : '';
+  },
+  downloadFilenameForRunKind(kind) {
+    return kind === CHUNK_RESULT_RUN_KIND.POC_FIXED_JSON_SCHEMA
+      ? 'poc_json_schema_example.json'
+      : CHUNK_UI_COPY.downloadFilename;
+  },
+  errJsonNotJson: '.json 파일만 올릴 수 있습니다.',
+  errJsonParsePrefix: 'JSON을 파싱할 수 없습니다: ',
+  errFileRead: '파일을 읽을 수 없습니다.',
+  moldSchemaChipKeys(n) {
+    return `스키마 자동 감지 완료 — 키 ${n}개 인식`;
+  },
+  moldSchemaChipFromOutputFinal(n) {
+    return `Extract 입력 스키마 감지 — 설계 틀 ${n}키로 변환`;
+  },
+  moldSchemaChipGeneric(n) {
+    return `JSON을 확인했습니다 (상위 ${n}개 항목)`;
+  },
+  moldSchemaChipAmbiguous: 'JSON 구조를 확인했습니다 (객체 키를 세지 못함)',
+  formatFileMeta(name, sizeBytes) {
+    const sz =
+      sizeBytes < 1024
+        ? `${sizeBytes} bytes`
+        : `${(sizeBytes / 1024).toFixed(1)} KB`;
+    return `파일: ${name} · ${sz}`;
+  },
+  /** PoC: 실행·재실행 시 항상 동일 예시 페이로드 — 바이트 수만 표시 */
+  resultFooterPocFixed(byteLen) {
+    return `PoC 고정 예시 · json_schema · ${byteLen} bytes`;
+  },
+  flowRawLabel: '밀가루 (입력)',
+  flowRawName: 'Parse 결과',
+  flowMoldLabel: '붕어빵 틀 (스키마)',
+  flowMoldName: '출력 샘플',
+  flowOutLabel: '붕어빵 (출력)',
+  flowOutName: 'Extract 입력',
+  rawAutoChip: '이전 단계(Parse) 출력을 자동으로 사용합니다',
+  moldAutoChipStored: '저장된 스키마 프리셋을 사용합니다',
+  moldAutoChipLlm: '문서에 맞게 스키마를 자동 설계합니다(서버 연동 시)',
+  sectionRaw: '1 · 밀가루',
+  sectionMold: '2 · 붕어빵 틀',
+  rawUploadTitle: 'JSON 파일 업로드',
+  rawUploadSub: 'Parse 결과 형식의 샘플',
+  moldUploadTitle: 'JSON 샘플 업로드',
+  moldUploadSub: 'designed_schema(flat_keys·tables) 또는 Extract 입력 스키마(json_schema)',
+  delUploaded: '삭제',
+};
+
+/**
+ * 파이썬 파이프라인(chunk-llm.py) 아티팩트와 UI 단계 매핑 — 화면에 노출하지 않음(협업·온보딩용).
+ * 사용자 문구는 CHUNK_UI_COPY.flow* / rawUpload* / moldUpload* 를 유지한다.
+ */
+const CHUNK_PIPELINE_ARTIFACT_ROLES = Object.freeze({
+  flourJson: 'INPUT_FILE',
+  moldJson: 'OUTPUT_SCHEMA',
+  runOutputJson: 'OUTPUT_FINAL',
+  extractedData: 'OUTPUT_DATA',
+});
+
+/** 목업·피드백 타이밍 — CSS와 분리 (ms 단일 출처) */
+const CHUNK_UI_TIMING = {
+  runMockDelayMs: 1400,
+  runSuccessResetMs: 2000,
+  scrollAfterResultMs: 50,
+  copyFeedbackMs: 1800,
+};
+
+function initChunkPanelCopy() {
+  document.querySelectorAll('#tg-raw .tg-btn[data-mode="user"], #tg-mold .tg-btn[data-mode="user"]').forEach(el => {
+    el.textContent = CHUNK_UI_COPY.toggleDirectUpload;
+    el.setAttribute(
+      'title',
+      el.dataset.group === 'raw' ? CHUNK_UI_COPY.rawToggleHint : CHUNK_UI_COPY.moldToggleHint
+    );
+  });
+  const lab = document.getElementById('chunk-intent-label');
+  if (lab) {
+    lab.textContent = '';
+    lab.appendChild(document.createTextNode(CHUNK_UI_COPY.intentLabel + ' '));
+    const opt = document.createElement('span');
+    opt.textContent = CHUNK_UI_COPY.intentOptional;
+    lab.appendChild(opt);
+  }
+  const ta = document.getElementById('chunk-user-intent');
+  if (ta) ta.placeholder = CHUNK_UI_COPY.intentPlaceholder;
+
+  const resultTitle = document.getElementById('chunk-result-title');
+  if (resultTitle) resultTitle.textContent = CHUNK_UI_COPY.resultTitle;
+  const resultSub = document.getElementById('chunk-result-subtitle');
+  if (resultSub) {
+    resultSub.textContent = '';
+    resultSub.hidden = true;
+  }
+
+  const moldAutoTg = document.getElementById('tg-mold-auto-mode');
+  if (moldAutoTg) {
+    moldAutoTg.setAttribute('aria-label', CHUNK_UI_COPY.moldAutoModeRadiogroupLabel);
+    const btns = moldAutoTg.querySelectorAll('.tg-btn[data-chunk-mold-auto]');
+    btns.forEach(b => {
+      const m = b.dataset.chunkMoldAuto;
+      b.textContent =
+        m === CHUNK_MOLD_AUTO_MODE.LLM_DESIGN
+          ? CHUNK_UI_COPY.moldAutoModeLlmBtn
+          : CHUNK_UI_COPY.moldAutoModeStoredBtn;
+    });
+  }
+  const onAuto = document.querySelector('#tg-mold-auto-mode .tg-btn.is-on');
+  if (window.CHUNK_PIPELINE && onAuto && onAuto.dataset.chunkMoldAuto) {
+    window.CHUNK_PIPELINE.moldAutoMode = onAuto.dataset.chunkMoldAuto;
+  }
+  syncMoldAutoModeAria();
+  refreshMoldAutoChipCopy();
+  const copyLbl = document.getElementById('copy-btn-label');
+  if (copyLbl) copyLbl.textContent = CHUNK_UI_COPY.copyLabel;
+  const dlLbl = document.getElementById('download-btn-label');
+  if (dlLbl) dlLbl.textContent = CHUNK_UI_COPY.downloadLabel;
+  const runLbl = document.querySelector('#run-btn .run-btn__label');
+  if (runLbl) runLbl.textContent = CHUNK_UI_COPY.runLabel;
+
+  const flowMap = [
+    ['flow-raw-label', 'flowRawLabel'],
+    ['flow-raw-name', 'flowRawName'],
+    ['flow-mold-label', 'flowMoldLabel'],
+    ['flow-mold-name', 'flowMoldName'],
+    ['flow-out-label', 'flowOutLabel'],
+    ['flow-out-name', 'flowOutName'],
+  ];
+  flowMap.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = CHUNK_UI_COPY[key];
+  });
+
+  const rawChip = document.getElementById('raw-auto-chip-copy');
+  if (rawChip) rawChip.textContent = CHUNK_UI_COPY.rawAutoChip;
+  const secRaw = document.getElementById('section-label-raw');
+  if (secRaw) secRaw.textContent = CHUNK_UI_COPY.sectionRaw;
+  const secMold = document.getElementById('section-label-mold');
+  if (secMold) secMold.textContent = CHUNK_UI_COPY.sectionMold;
+
+  const rut = document.getElementById('raw-upload-title');
+  const rus = document.getElementById('raw-upload-sub');
+  if (rut) rut.textContent = CHUNK_UI_COPY.rawUploadTitle;
+  if (rus) rus.textContent = CHUNK_UI_COPY.rawUploadSub;
+  const mut = document.getElementById('mold-upload-title');
+  const mus = document.getElementById('mold-upload-sub');
+  if (mut) mut.textContent = CHUNK_UI_COPY.moldUploadTitle;
+  if (mus) mus.textContent = CHUNK_UI_COPY.moldUploadSub;
+
+  document.querySelectorAll('.del-btn').forEach(b => {
+    b.textContent = CHUNK_UI_COPY.delUploaded;
+  });
+}
+
+/** Chunk 패널 런타임 — PoC 예시 JSON의 `json_schema.name` 과 맞출 모듈명 */
+const CHUNK_CONFIG = Object.freeze({
+  extractModuleName: 'Extract-1',
+});
+
+/**
+ * PoC 고정 예시 JSON — `#chunk-poc-fixed-example-json` 단일 DOM 소스.
+ * 리포지터리의 `chunk_poc_fixed_example.json` 과 동기화하면 diff·리뷰가 쉬움.
+ */
+let CHUNK_POC_FIXED_EXAMPLE_CACHE_STR = null;
+
+function stringifyChunkPocFixedExampleFromDom() {
+  const el = document.getElementById('chunk-poc-fixed-example-json');
+  if (!el || !String(el.textContent || '').trim()) {
+    throw new Error('#chunk-poc-fixed-example-json 요소가 없거나 비어 있습니다.');
+  }
+  const obj = JSON.parse(String(el.textContent).trim());
+  if (obj && obj.json_schema && typeof obj.json_schema === 'object') {
+    obj.json_schema.name = CHUNK_CONFIG.extractModuleName;
+  }
+  return JSON.stringify(obj, null, 2);
+}
+
+function getChunkPocFixedExamplePrettyString() {
+  if (CHUNK_POC_FIXED_EXAMPLE_CACHE_STR == null) {
+    CHUNK_POC_FIXED_EXAMPLE_CACHE_STR = stringifyChunkPocFixedExampleFromDom();
+  }
+  return CHUNK_POC_FIXED_EXAMPLE_CACHE_STR;
+}
+
+/* ── 파이프라인 상태 (Python chunk-llm.py 아티팩트와 동일 역할) ─────── */
+window.CHUNK_PIPELINE = window.CHUNK_PIPELINE || {
+  rawParsed: null,
+  moldParsed: null,
+  lastOutputStr: null,
+  /** CHUNK_MOLD_AUTO_MODE 값 */
+  moldAutoMode: CHUNK_MOLD_AUTO_MODE.STORED_SCHEMA,
+  /** CHUNK_RESULT_RUN_KIND */
+  lastRunKind: null,
+};
+
+/* initChunkPanelCopy는 CHUNK_PIPELINE 할당 이후에만 호출 (moldAutoMode 동기화 시 객체 필요) */
+initChunkPanelCopy();
+
+function getChunkResultStr() {
+  const p = window.CHUNK_PIPELINE;
+  return (p && p.lastOutputStr) || getChunkPocFixedExamplePrettyString();
+}
+
+/** Python ``is_designed_schema_dict`` 와 동형 */
+function isDesignedSchemaShape(o) {
+  return (
+    o &&
+    typeof o === 'object' &&
+    Array.isArray(o.flat_keys) &&
+    Array.isArray(o.tables)
+  );
+}
+
+/** OUTPUT_FINAL 래퍼 — ``designedSchemaToOutputFinal`` 역방향 입력 허용 */
+function isOutputFinalJsonSchemaShape(o) {
+  return (
+    o &&
+    typeof o === 'object' &&
+    o.type === 'json_schema' &&
+    o.json_schema &&
+    typeof o.json_schema === 'object' &&
+    o.json_schema.schema &&
+    o.json_schema.schema.type === 'object' &&
+    o.json_schema.schema.properties &&
+    typeof o.json_schema.schema.properties === 'object'
+  );
+}
+
+/** ``designedSchemaToOutputFinal`` 의 역 — Python ``output_final_to_designed`` 와 동일 규칙 */
+function outputFinalToDesignedSchema(o) {
+  if (!isOutputFinalJsonSchemaShape(o)) return null;
+  const props = o.json_schema.schema.properties;
+  const flat_keys = [];
+  const tables = [];
+  for (const [name, defn] of Object.entries(props)) {
+    if (!defn || typeof defn !== 'object') continue;
+    if (
+      defn.type === 'array' &&
+      defn.items &&
+      typeof defn.items === 'object' &&
+      defn.items.type === 'object' &&
+      defn.items.properties &&
+      typeof defn.items.properties === 'object'
+    ) {
+      const columns = [];
+      for (const [cn, cdef] of Object.entries(defn.items.properties)) {
+        if (!cdef || typeof cdef !== 'object') continue;
+        columns.push({
+          name: cn,
+          type: typeof cdef.type === 'string' ? cdef.type : 'string',
+          description: cdef.description != null ? String(cdef.description) : '',
+        });
+      }
+      tables.push({
+        name,
+        description: defn.description != null ? String(defn.description) : '',
+        columns,
+      });
+    } else {
+      flat_keys.push({
+        name,
+        type: typeof defn.type === 'string' ? defn.type : 'string',
+        description: defn.description != null ? String(defn.description) : '',
+      });
+    }
+  }
+  return { flat_keys, tables };
+}
+
+/** 직접 업로드 JSON → 파이프라인·미리보기 공통 설계 틀 */
+function resolveMoldUploadAsDesigned(o) {
+  if (isDesignedSchemaShape(o)) return o;
+  const conv = outputFinalToDesignedSchema(o);
+  return conv && isDesignedSchemaShape(conv) ? conv : null;
+}
+
+function getMoldAutoMode() {
+  const pipe = window.CHUNK_PIPELINE;
+  if (pipe && pipe.moldAutoMode) return pipe.moldAutoMode;
+  const on = document.querySelector('#tg-mold-auto-mode .tg-btn.is-on');
+  const m = on && on.dataset.chunkMoldAuto;
+  return m || CHUNK_MOLD_AUTO_MODE.STORED_SCHEMA;
+}
+
+function syncMoldAutoModeAria() {
+  const tg = document.getElementById('tg-mold-auto-mode');
+  if (!tg) return;
+  tg.querySelectorAll('.tg-btn[data-chunk-mold-auto]').forEach(b => {
+    b.setAttribute('aria-checked', b.classList.contains('is-on') ? 'true' : 'false');
+  });
+}
+
+function handleMoldAutoModeToggle(btn) {
+  const mode = btn.dataset.chunkMoldAuto;
+  if (!mode) return;
+  const tg = document.getElementById('tg-mold-auto-mode');
+  if (tg) {
+    tg.querySelectorAll('.tg-btn').forEach(b => b.classList.toggle('is-on', b === btn));
+  }
+  syncMoldAutoModeAria();
+  window.CHUNK_PIPELINE.moldAutoMode = mode;
+  refreshMoldAutoChipCopy();
+}
+
+function refreshMoldAutoChipCopy() {
+  const el = document.getElementById('mold-auto-chip-copy');
+  if (!el) return;
+  const mode = getMoldAutoMode();
+  el.textContent =
+    mode === CHUNK_MOLD_AUTO_MODE.LLM_DESIGN
+      ? CHUNK_UI_COPY.moldAutoChipLlm
+      : CHUNK_UI_COPY.moldAutoChipStored;
+}
+
+/** Python ``ExtractSchema.total_key_count`` 와 동일 규칙 (데모 표시용) */
+function countExtractKeyBudget(design) {
+  let n = (design.flat_keys || []).length;
+  for (const tb of design.tables || []) {
+    n += 1 + (tb.columns || []).length;
+  }
+  return n;
+}
+
+/* ── SVG icon strings (reused across button states) ────────────────── */
+const ICON = {
+  play:  '<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M5 3l9 5-9 5V3z" fill="currentColor"/></svg>',
+  check: '<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  copy:  '<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 11V3a1 1 0 011-1h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+};
+
+/* ── Generic toggle handler
+     Works for any group with the pattern:
+       - toggle group id:  #tg-{group}
+       - auto pane id:     #{group}-auto
+       - user pane id:     #{group}-user
+─────────────────────────────────────────────────────────────────────── */
+function handleToggle(btn) {
+  const { group, mode } = btn.dataset;
+  if (!group || !mode) return;
+
+  const tg = document.getElementById('tg-' + group);
+  const autoEl = document.getElementById(group + '-auto');
+  const userEl = document.getElementById(group + '-user');
+  if (!tg || !autoEl || !userEl) return;
+
+  tg.querySelectorAll('.tg-btn').forEach(b => b.classList.toggle('is-on', b === btn));
+  autoEl.style.display = mode === 'auto' ? 'block' : 'none';
+  userEl.style.display = mode === 'user' ? 'block' : 'none';
+  if (group === 'mold' && mode === 'auto') refreshMoldAutoChipCopy();
+}
+
+/* ── JSON 업로드 (raw / mold 공통 패턴)
+     - 숨은 file input + FileReader (서버 URL 하드코딩 없음)
+     - 표시는 textContent 로 XSS 방지
+     Naming: #{group}-upload-zone, #{group}-file-input, #{group}-json-display
+─────────────────────────────────────────────────────────────────────── */
+const UPLOAD_GROUPS = ['raw', 'mold'];
+
+function fileInputEl(group) {
+  return document.getElementById(group + '-file-input');
+}
+
+function showUploadError(group, msg) {
+  const el = document.getElementById(group + '-upload-error');
+  if (!el) return;
+  if (!msg) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function isLikelyJsonFile(file) {
+  const n = file.name.toLowerCase();
+  return n.endsWith('.json') || file.type === 'application/json' || file.type === 'text/json' || file.type === '';
+}
+
+function countSchemaKeys(parsed) {
+  if (Array.isArray(parsed)) {
+    if (parsed.length === 0) return 0;
+    const first = parsed[0];
+    if (first && typeof first === 'object' && !Array.isArray(first)) return Object.keys(first).length;
+    return 0;
+  }
+  if (parsed && typeof parsed === 'object') return Object.keys(parsed).length;
+  return 0;
+}
+
+function moldUploadChipText(parsed) {
+  const designed = resolveMoldUploadAsDesigned(parsed);
+  if (designed) {
+    const n = countExtractKeyBudget(designed);
+    return isDesignedSchemaShape(parsed)
+      ? CHUNK_UI_COPY.moldSchemaChipKeys(n)
+      : CHUNK_UI_COPY.moldSchemaChipFromOutputFinal(n);
+  }
+  const n = countSchemaKeys(parsed);
+  return n ? CHUNK_UI_COPY.moldSchemaChipGeneric(n) : CHUNK_UI_COPY.moldSchemaChipAmbiguous;
+}
+
+function applyUploadedJson(group, parsed, pretty, fileMeta) {
+  showUploadError(group, '');
+  document.getElementById(group + '-upload-zone').style.display = 'none';
+  document.getElementById(group + '-uploaded').style.display = 'block';
+  document.getElementById(group + '-json-display').textContent = pretty;
+
+  if (group === 'raw') window.CHUNK_PIPELINE.rawParsed = parsed;
+  if (group === 'mold') window.CHUNK_PIPELINE.moldParsed = parsed;
+
+  const meta = document.getElementById(group + '-file-meta');
+  if (meta) {
+    meta.textContent =
+      fileMeta ? CHUNK_UI_COPY.formatFileMeta(fileMeta.name, fileMeta.size) : '';
+  }
+
+  if (group === 'mold') {
+    const chip = document.getElementById('mold-schema-chip');
+    const chipText = document.getElementById('mold-schema-chip-text');
+    chip.style.display = 'flex';
+    chipText.textContent = moldUploadChipText(parsed);
+  }
+}
+
+function clearUploaded(group) {
+  const input = fileInputEl(group);
+  if (input) input.value = '';
+  showUploadError(group, '');
+  document.getElementById(group + '-uploaded').style.display = 'none';
+  document.getElementById(group + '-upload-zone').style.display = 'block';
+  const pre = document.getElementById(group + '-json-display');
+  if (pre) pre.textContent = '';
+  const meta = document.getElementById(group + '-file-meta');
+  if (meta) meta.textContent = '';
+  if (group === 'raw') window.CHUNK_PIPELINE.rawParsed = null;
+  if (group === 'mold') window.CHUNK_PIPELINE.moldParsed = null;
+
+  if (group === 'mold') {
+    const chip = document.getElementById('mold-schema-chip');
+    chip.style.display = 'none';
+    document.getElementById('mold-schema-chip-text').textContent = '';
+  }
+}
+
+function onJsonFilePicked(group, fileList) {
+  const file = fileList && fileList[0];
+  if (!file) return;
+  if (!isLikelyJsonFile(file)) {
+    showUploadError(group, CHUNK_UI_COPY.errJsonNotJson);
+    return;
+  }
+  const input = fileInputEl(group);
+  const reader = new FileReader();
+  reader.onload = () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(String(reader.result));
+    } catch (e) {
+      showUploadError(group, CHUNK_UI_COPY.errJsonParsePrefix + e.message);
+      return;
+    }
+    applyUploadedJson(group, parsed, JSON.stringify(parsed, null, 2), file);
+    if (input) input.value = '';
+  };
+  reader.onerror = () => showUploadError(group, CHUNK_UI_COPY.errFileRead);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function openJsonPicker(group) {
+  showUploadError(group, '');
+  const input = fileInputEl(group);
+  if (input) input.click();
+}
+
+function bindDropZone(group) {
+  const zone = document.getElementById(group + '-upload-zone');
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach(ev =>
+    zone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.add('upload-zone--active');
+    })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    zone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove('upload-zone--active');
+    })
+  );
+  zone.addEventListener('drop', e => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) onJsonFilePicked(group, files);
+  });
+}
+
+function initJsonUploads() {
+  UPLOAD_GROUPS.forEach(group => {
+    const zone = document.getElementById(group + '-upload-zone');
+    const input = fileInputEl(group);
+    if (!zone || !input) return;
+    zone.addEventListener('click', () => openJsonPicker(group));
+    zone.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openJsonPicker(group);
+      }
+    });
+    input.addEventListener('change', () => onJsonFilePicked(group, input.files));
+    bindDropZone(group);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initJsonUploads);
+} else {
+  initJsonUploads();
+}
+
+/* ── JSON syntax highlighter (innerHTML 전 &<> 이스케이프) ─────────── */
+function escapeHtmlForJsonView(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function highlightJson(str) {
+  const safe = escapeHtmlForJsonView(str);
+  return safe
+    .replace(/("[\w가-힣]+")\s*:/g, '<span class="jk">$1</span>:')
+    .replace(/: (\d+)/g, ': <span class="jv">$1</span>')
+    .replace(/: ("[\w가-힣]+")/g, ': <span class="js">$1</span>');
+}
+
+/* ── Run button (PoC: 입력 조합과 무관하게 고정 예시 JSON만 표시) ─────── */
+function runChunk() {
+  void runChunkAsync();
+}
+
+async function runChunkAsync() {
+  const btn = document.getElementById('run-btn');
+  if (!btn) return;
+
+  const pipe = window.CHUNK_PIPELINE;
+
+  const rootStyle = getComputedStyle(document.documentElement);
+  const loadingBg = rootStyle.getPropertyValue('--state-run-loading-bg').trim() || '#15803d';
+  const successBg = rootStyle.getPropertyValue('--state-run-success-bg').trim() || '#059669';
+
+  btn.disabled = true;
+  btn.style.background = loadingBg;
+  btn.innerHTML = `
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="5" stroke="white" stroke-width="1.5" stroke-dasharray="16 8">
+        <animateTransform attributeName="transform" type="rotate"
+          from="0 8 8" to="360 8 8" dur="0.7s" repeatCount="indefinite"/>
+      </circle>
+    </svg><span class="run-btn__label">${CHUNK_UI_COPY.runLoading}</span>`;
+
+  await new Promise((r) => setTimeout(r, CHUNK_UI_TIMING.runMockDelayMs));
+
+  const resultBody = document.getElementById('result-body');
+  const resultFooter = document.getElementById('result-footer-bar');
+  const resultSection = document.getElementById('result-section');
+  const resultSubEl = document.getElementById('chunk-result-subtitle');
+
+  const runKind = CHUNK_RESULT_RUN_KIND.POC_FIXED_JSON_SCHEMA;
+  let outStr;
+  let footerText;
+
+  try {
+    outStr = getChunkPocFixedExamplePrettyString();
+    footerText = CHUNK_UI_COPY.resultFooterPocFixed(new Blob([outStr]).size);
+  } catch (e) {
+    console.warn('[chunk_json] PoC 고정 예시 JSON:', e);
+    outStr = JSON.stringify({ error: String(e.message || e) }, null, 2);
+    footerText = CHUNK_UI_COPY.resultFooterPocFixed(new Blob([outStr]).size);
+  }
+
+  pipe.lastRunKind = runKind;
+  pipe.lastOutputStr = outStr;
+
+  if (resultBody) resultBody.innerHTML = highlightJson(outStr);
+  if (resultFooter) resultFooter.textContent = footerText;
+  if (resultSubEl) {
+    const sub = CHUNK_UI_COPY.resultSubtitleForRunKind(runKind);
+    resultSubEl.textContent = sub;
+    resultSubEl.hidden = !sub;
+  }
+  if (resultSection) resultSection.style.display = 'block';
+
+  btn.style.background = successBg;
+  btn.innerHTML = `${ICON.check}<span class="run-btn__label">${CHUNK_UI_COPY.runSuccess}</span>`;
+  btn.disabled = false;
+
+  const body = document.getElementById('panel-body');
+  if (body) {
+    setTimeout(
+      () => body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }),
+      CHUNK_UI_TIMING.scrollAfterResultMs
+    );
+  }
+
+  setTimeout(() => {
+    btn.style.background = '';
+    btn.innerHTML = `${ICON.play}<span class="run-btn__label">${CHUNK_UI_COPY.runAgain}</span>`;
+  }, CHUNK_UI_TIMING.runSuccessResetMs);
+}
+
+/* ── Copy button ───────────────────────────────────────────────────── */
+function copyResult() {
+  navigator.clipboard.writeText(getChunkResultStr()).catch(() => {});
+  const btn = document.getElementById('copy-btn');
+  if (!btn) return;
+  btn.classList.add('is-copied');
+  btn.innerHTML = `${ICON.check}<span class="icon-btn-label">${CHUNK_UI_COPY.copyDone}</span>`;
+  setTimeout(() => {
+    btn.classList.remove('is-copied');
+    btn.innerHTML = `${ICON.copy}<span class="icon-btn-label">${CHUNK_UI_COPY.copyLabel}</span>`;
+  }, CHUNK_UI_TIMING.copyFeedbackMs);
+}
+
+/* ── Download button ───────────────────────────────────────────────── */
+function downloadResult() {
+  const a = document.createElement('a');
+  const body = getChunkResultStr();
+  const pipe = window.CHUNK_PIPELINE;
+  const name = CHUNK_UI_COPY.downloadFilenameForRunKind(pipe && pipe.lastRunKind);
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(body);
+  a.download = name;
+  a.click();
+}
+</script>
+</body>
+</html>

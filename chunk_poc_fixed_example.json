@@ -1,0 +1,77 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "Extract-1",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "document_type": {
+          "type": "string",
+          "description": "Indicates the type or title of the exam or document, such as the subject or exam session."
+        },
+        "exam_session": {
+          "type": "string",
+          "description": "Specifies the session or part of the exam, such as '제3교시'."
+        },
+        "general_instructions": {
+          "type": "string",
+          "description": "Contains general instructions or notes applicable to the exam or questions, including assumptions and accounting standards to be used."
+        },
+        "questions": {
+          "type": "array",
+          "description": "",
+          "items": {
+            "type": "object",
+            "properties": {
+              "question_number": {
+                "type": "string",
+                "description": "The number or identifier of the question."
+              },
+              "question_text": {
+                "type": "string",
+                "description": "The main text or body of the question, including any scenario or requirements."
+              },
+              "question_additional_info": {
+                "type": "string",
+                "description": "Any additional information, notes, or assumptions specific to the question."
+              },
+              "question_table": {
+                "type": "string",
+                "description": "Reference to a table id or description if the question includes a table. If multiple tables, concatenate or enumerate."
+              },
+              "question_options": {
+                "type": "string",
+                "description": "The list of answer options for the question, formatted as a string or enumerated list."
+              }
+            }
+          }
+        },
+        "tables": {
+          "type": "array",
+          "description": "",
+          "items": {
+            "type": "object",
+            "properties": {
+              "table_id": {
+                "type": "string",
+                "description": "A unique identifier for the table, typically matching the document's table id."
+              },
+              "table_title": {
+                "type": "string",
+                "description": "The title or caption of the table, if present."
+              },
+              "table_headers": {
+                "type": "string",
+                "description": "The headers of the table, concatenated or as a comma-separated string."
+              },
+              "table_rows": {
+                "type": "string",
+                "description": "The rows of the table, formatted as a string or JSON array if further structure is required."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
