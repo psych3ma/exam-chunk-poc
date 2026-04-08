@@ -48,4 +48,6 @@
 
 ---
 
-Built with Cursor AI · 업스테이지 Studio
+<div align="center">
+  <sub>Built with Cursor AI · 업스테이지 Studio</sub>
+</div>
