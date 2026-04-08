@@ -1,4 +1,4 @@
-# [Upstage] Studio > Chunk Module UI PoC
+# 🍪 [Upstage] Studio > Chunk Module UI PoC
 
 [![Chunk Module Preview](assets/upstage-deck-03.png)](https://graceful-semolina-d6a50d.netlify.app/)
 
